@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Study Planner - Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Study Planner</h1>
+
+  <div id="auth-box">
+    <h2>Login</h2>
+    <input id="login-username" placeholder="Username">
+    <input id="login-password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+    <h2>Signup</h2>
+    <input id="signup-username" placeholder="Username">
+    <input id="signup-password" type="password" placeholder="Password">
+    <button onclick="signup()">Signup</button>
+  </div>
+
+  <div id="todo-container">
+    <h2>Daily Checklist</h2>
+    <input type="text" id="new-task" placeholder="Enter a new task">
+    <button onclick="addTask()">Add Task</button>
+    <ul id="task-list"></ul>
+
+    <h3>Task History</h3>
+    <ul id="task-history"></ul>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

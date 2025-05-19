@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Study Planner - Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Dashboard</h1>
+  <button onclick="logout()">Logout</button>
+
+  <section>
+    <h2>Create Progress</h2>
+    <input id="progress-name" placeholder="Name (e.g. BTech 2025)">
+    <input id="progress-desc" placeholder="Description (e.g. Semester 5)">
+    <button onclick="createProgress()">Add</button>
+  </section>
+
+  <section>
+    <h2>Progress Profiles</h2>
+    <div id="progress-list"></div>
+  </section>
+
+  <div id="course-section" style="display:none;">
+    <h3>Add Course to: <span id="current-progress-name"></span></h3>
+    <input id="course-name" placeholder="Course Name">
+    <input id="target-grade" placeholder="Target Grade">
+    <input id="free-hours" placeholder="Free Hours/Day">
+    <button onclick="addCourse()">Add Course</button>
+
+    <div id="course-list"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

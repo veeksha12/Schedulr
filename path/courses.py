@@ -1,19 +1,36 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from db import get_session
 from sonar import ask_sonar
 from models import Exam, Course
 from datetime import datetime
+from typing import List
 
 router = APIRouter()
+
+def calculate_course_grade(session: Session, course_id: int) -> float:
+    exams = session.exec(select(Exam).where(Exam.course_id == course_id)).all()
+    if not exams:
+        return 0.0
+    total_weightage = sum(e.weightage for e in exams if e.weightage is not None)
+    if total_weightage == 0:
+        return 0.0
+
+    weighted_sum = 0.0
+    for e in exams:
+        if e.score is not None and e.weightage is not None and e.max_marks is not None:
+            weighted_sum += (e.score / e.max_marks) * e.weightage
+    # Normalize to percentage scale (0-100)
+    return round((weighted_sum / total_weightage) * 100, 2)
+
 
 @router.post("/course/")
 def add_course(
     progress_id: int,
     name: str,
-    current_grade: float,
-    target_grade: float,
-    free_hours_per_day: float,
+    current_grade: float = 0.0,
+    target_grade: float = 100.0,
+    free_hours_per_day: float = 0.0,
     session: Session = Depends(get_session)
 ):
     course = Course(
@@ -39,7 +56,7 @@ def update_course(
 ):
     course = session.get(Course, course_id)
     if not course:
-        return {"error": "Course not found"}
+        raise HTTPException(status_code=404, detail="Course not found")
 
     if current_grade is not None:
         course.current_grade = current_grade
@@ -53,9 +70,16 @@ def update_course(
     return course
 
 
-@router.get("/course/{progress_id}")
+@router.get("/course/{progress_id}", response_model=List[Course])
 def get_courses_for_progress(progress_id: int, session: Session = Depends(get_session)):
-    return session.exec(select(Course).where(Course.progress_id == progress_id)).all()
+    courses = session.exec(select(Course).where(Course.progress_id == progress_id)).all()
+    if not courses:
+        raise HTTPException(status_code=404, detail="No courses found for this progress_id")
+
+    # Inject dynamically calculated current_grade based on exams
+    for course in courses:
+        course.current_grade = calculate_course_grade(session, course.id)
+    return courses
 
 
 @router.post("/course/{course_id}/autograde")

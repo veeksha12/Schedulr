@@ -1,5 +1,12 @@
 const API_URL = "http://127.0.0.1:8000/api";
-let token = localStorage.getItem("token");
+// fix this code properly
+
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + localStorage.getItem("token")
+  };
+}
 
 // LOGIN
 async function login() {
@@ -35,14 +42,28 @@ async function signup() {
   }
 }
 
-// DASHBOARD.JS LOGIC ONLY
-if (window.location.pathname.includes("dashboard")) {
-  loadProgress();
-}
-
 function logout() {
   localStorage.removeItem("token");
   window.location.href = "index.html";
+}
+
+// Fetch logged-in user info and display it on dashboard
+async function getUserInfo() {
+  const res = await fetch(`${API_URL}/user/me`, { headers: authHeaders() });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return user;
+}
+
+// DASHBOARD INIT
+if (window.location.pathname.includes("dashboard")) {
+  getUserInfo().then(user => {
+    if (user) {
+      const userDisplay = document.getElementById("user-name");
+      if (userDisplay) userDisplay.innerText = `Logged in as: ${user.username}`;
+    }
+  });
+  loadProgress();
 }
 
 // Create Progress
@@ -73,7 +94,6 @@ async function loadProgress() {
   });
 }
 
-// Select Progress
 let currentProgressId = null;
 function selectProgress(id, name) {
   currentProgressId = id;
@@ -108,6 +128,7 @@ async function loadCourses() {
     div.innerHTML = `
       <p><strong>${c.name}</strong> — Grade: ${c.current_grade ?? "?"} | Target: ${c.target_grade}</p>
       <button onclick="autoGrade(${c.id})">Auto Update Grade</button>
+      <button onclick="selectCourse(${c.id}, '${c.name}')">View Exams</button>
     `;
     container.appendChild(div);
   });
@@ -124,15 +145,9 @@ async function autoGrade(courseId) {
   loadCourses();
 }
 
-function authHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer " + localStorage.getItem("token")
-  };
-}
-
+// Tasks
 async function fetchTodayTasks() {
-  const res = await fetch("/tasks/today");
+  const res = await fetch(`${API_URL}/tasks/today`, { headers: authHeaders() });
   const tasks = await res.json();
   renderTasks(tasks);
 }
@@ -142,13 +157,19 @@ async function addTask() {
   const taskText = taskInput.value.trim();
   if (taskText === "") return;
 
-  await fetch("/tasks/?description=" + encodeURIComponent(taskText), { method: "POST" });
+  await fetch(`${API_URL}/tasks/?description=` + encodeURIComponent(taskText), {
+    method: "POST",
+    headers: authHeaders()
+  });
   taskInput.value = "";
   fetchTodayTasks();
 }
 
 async function toggleTask(taskId, completed) {
-  await fetch(`/tasks/${taskId}?completed=${completed}`, { method: "PUT" });
+  await fetch(`${API_URL}/tasks/${taskId}?completed=${completed}`, {
+    method: "PUT",
+    headers: authHeaders()
+  });
   fetchTodayTasks();
 }
 
@@ -174,7 +195,7 @@ function renderTasks(tasks) {
 }
 
 async function fetchTaskHistory() {
-  const res = await fetch("/tasks/history");
+  const res = await fetch(`${API_URL}/tasks/history`, { headers: authHeaders() });
   const history = await res.json();
   const list = document.getElementById("task-history");
   list.innerHTML = "";
@@ -189,3 +210,170 @@ window.onload = () => {
   fetchTodayTasks();
   fetchTaskHistory();
 };
+
+// Grade Help & Chat API functions unchanged (omit for brevity)
+
+// --- Planner CRUD ---
+async function fetchPlanners() {
+  const res = await fetch(`${API_URL}/planner/`, { headers: authHeaders() });
+  const planners = await res.json();
+  renderPlannerList(planners);
+}
+
+async function addPlanner() {
+  const name = prompt("Planner name (e.g., Sem 5 – MSc):");
+  if (!name) return;
+  await fetch(`${API_URL}/planner/`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ name })
+  });
+  fetchPlanners();
+}
+
+function renderPlannerList(planners) {
+  const box = document.getElementById("planner-box");
+  box.innerHTML = "";
+  planners.forEach(p => {
+    const div = document.createElement("div");
+    div.textContent = p.name;
+    div.onclick = () => loadPlanner(p.id);
+    box.appendChild(div);
+  });
+}
+
+async function loadPlanner(plannerId) {
+  // Example: Load courses for this planner (replace with your actual API if different)
+  currentProgressId = plannerId;
+  document.getElementById("current-progress-name").innerText = `Planner: ${plannerId}`;
+  document.getElementById("course-section").style.display = "block";
+  await loadCourses();
+}
+
+let currentCourseId = null;
+let currentCourseName = "";
+
+function selectCourse(id, name) {
+  currentCourseId = id;
+  currentCourseName = name;
+  document.getElementById("current-course-name").innerText = name;
+  document.getElementById("exam-section").style.display = "block";
+  loadExams();
+}
+
+async function loadExams() {
+  const res = await fetch(`${API_URL}/exams/course/${currentCourseId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    alert("Failed to load exams");
+    return;
+  }
+  const exams = await res.json();
+  renderExams(exams);
+  calculateCurrentGrade(exams);
+  getAIAdvice(exams);
+}
+
+function renderExams(exams) {
+  const list = document.getElementById("exam-list");
+  list.innerHTML = "";
+  exams.forEach((exam) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <input type="text" value="${exam.name}" disabled />
+      <input type="date" value="${exam.date}" disabled />
+      <input type="number" value="${exam.marks}" min="0" max="100" onchange="updateExam(${exam.id}, 'marks', this.value)" />
+      <input type="number" value="${exam.weightage}" min="0" max="100" onchange="updateExam(${exam.id}, 'weightage', this.value)" />
+      <button onclick="removeExam(${exam.id})">Delete</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+async function addExam() {
+  const name = document.getElementById("exam-name").value.trim();
+  const date = document.getElementById("exam-date").value;
+  const marks = parseFloat(document.getElementById("exam-marks").value);
+  const weightage = parseFloat(document.getElementById("exam-weightage").value);
+
+  if (!name || !date || isNaN(marks) || isNaN(weightage)) {
+    alert("Please fill all exam details correctly");
+    return;
+  }
+
+  const res = await fetch(`${API_URL}/exams/course/${currentCourseId}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ name, date, marks, weightage }),
+  });
+
+  if (!res.ok) {
+    alert("Failed to add exam");
+    return;
+  }
+
+  // Reset inputs
+  document.getElementById("exam-name").value = "";
+  document.getElementById("exam-date").value = "";
+  document.getElementById("exam-marks").value = "";
+  document.getElementById("exam-weightage").value = "";
+
+  loadExams();
+}
+
+async function updateExam(examId, field, value) {
+  const body = {};
+  body[field] = field === "marks" || field === "weightage" ? parseFloat(value) : value;
+
+  const res = await fetch(`${API_URL}/exams/${examId}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    alert("Failed to update exam");
+    return;
+  }
+  loadExams();
+}
+
+async function removeExam(examId) {
+  const res = await fetch(`${API_URL}/exams/${examId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    alert("Failed to delete exam");
+    return;
+  }
+  loadExams();
+}
+
+function calculateCurrentGrade(exams) {
+  let totalWeightedMarks = 0;
+  let totalWeight = 0;
+  exams.forEach((exam) => {
+    totalWeightedMarks += exam.marks * exam.weightage;
+    totalWeight += exam.weightage;
+  });
+  const grade = totalWeight > 0 ? (totalWeightedMarks / totalWeight).toFixed(2) : "?";
+  document.getElementById("calculated-grade").innerText = grade;
+}
+
+async function getAIAdvice(exams) {
+  try {
+    const res = await fetch(`${API_URL}/exams/ai/grade-help`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("token") },
+      body: JSON.stringify({ exams }),
+    });
+    const data = await res.json();
+    alert("AI Advice: " + (data.response || data.error));
+  } catch (err) {
+    console.error("AI advice error", err);
+  }
+}
+

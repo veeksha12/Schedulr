@@ -19,6 +19,7 @@ body {
   height: 550px;
   background: #fff;
   border-radius: 30px;
+  overflow: hidden;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
 }
 
@@ -109,16 +110,41 @@ form {
   height: 100%;
 }
 
+.toggle-box::before {
+  content: '';
+  position: absolute;
+  left: -250%;
+  width: 300%;
+  height: 100%;
+  background: #7494ec;
+  border-radius: 150px;
+  z-index: 2;
+}
+
 .toggle-panel {
   position: absolute;
   width: 50%;
   height: 100%;
-  background: seagreen;
+  /* background: seagreen; */
   color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  z-index: 2;
+}
+
+.toggle-panel p {
+  margin-bottom: 20px;
+}
+
+.toggle-panel .btn {
+  width: 160px;
+  height: 46px;
+  background: transparent;
+  border: 2px solid #fff;
+  box-shadow: none;
+
 }
 
 .quote-container {

@@ -1,46 +1,17 @@
 const API_URL = "http://127.0.0.1:8000/api";
 // fix this code properly
 
-function authHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer " + localStorage.getItem("token")
-  };
-}
+const container = document.querySelector('.container');
+const registerBtn = document.querySelector('.register-btn');
+const loginBtn = document.querySelector('.login-btn');
 
-// LOGIN
-async function login() {
-  const username = document.getElementById("login-username").value;
-  const password = document.getElementById("login-password").value;
-  const res = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (data.access_token) {
-    localStorage.setItem("token", data.access_token);
-    window.location.href = "dashboard.html";
-  } else {
-    alert("Login failed");
-  }
-}
+registerBtn.addEventListener('click', () => {
+  container.classList.add('active');
+});
 
-// SIGNUP
-async function signup() {
-  const username = document.getElementById("signup-username").value;
-  const password = document.getElementById("signup-password").value;
-  const res = await fetch(`${API_URL}/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
-  if (res.ok) {
-    alert("Signup successful. You can now log in.");
-  } else {
-    alert("Signup failed");
-  }
-}
+loginBtn.addEventListener('click', () => {
+  container.classList.remove('active');
+});
 
 function logout() {
   localStorage.removeItem("token");
